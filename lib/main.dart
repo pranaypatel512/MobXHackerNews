@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_mobx/flutter_mobx.dart';
+import 'package:mobx/mobx.dart';
+
+import 'hn_api.dart';
+import 'news_store.dart';
 
 void main() {
   runApp(const MyApp());
@@ -54,4 +59,63 @@ class _MyHomePageState extends State<MyHomePage> {
                 children: [])) // This trailing comma makes auto-formatting nicer for build methods.
         );
   }
+}
+
+class FeedItemsView extends StatelessWidget {
+  const FeedItemsView(this.store, this.type, {Key? key}) : super(key: key);
+
+  final HackerNewsStore store;
+  final FeedType type;
+
+  @override
+  Widget build(BuildContext context) {
+    return Observer(builder: (_) {
+      final future = type == FeedType.latest ? store.latestItemsFuture : store.topItemsFuture;
+
+      if(future==null)
+        {
+          return const CircularProgressIndicator();
+        }
+
+      switch(future.status){
+        case FutureStatus.pending :
+          return Column(mainAxisAlignment: MainAxisAlignment.center,children: const [
+            CircularProgressIndicator(),
+            Text("Loading items...")
+          ],);
+        case FutureStatus.rejected :
+          return Row(mainAxisAlignment: MainAxisAlignment.center,children: [
+            const Text('Failed to load items.',
+              style: TextStyle(color: Colors.red),),
+            ElevatedButton(onPressed: _refresh, child: const Text('Tap to try again'))
+
+          ],);
+
+        case FutureStatus.fulfilled :
+          final List<FeedItem> items = future.result;
+          return RefreshIndicator(
+              onRefresh: _refresh,
+              child: ListView.builder(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  itemCount: items.length,
+                  itemBuilder: (_, index) {
+                    final item = items[index];
+                    return ListTile(
+                      leading: Text(
+                        '${item.score}',
+                        style: const TextStyle(fontSize: 20),
+                      ),
+                      title: Text(
+                        item.title,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Text('- ${item.author}'),
+                      onTap: () => store.openUrl(item.url),
+                    );
+                  }));
+      }
+    });
+  }
+  Future _refresh() =>
+      (type == FeedType.latest) ? store.fetchLatest() : store.fetchTop();
 }
