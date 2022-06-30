@@ -41,9 +41,20 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateMixin {
+  final _tabs = [FeedType.latest,FeedType.top];
   late TabController _tabController;
+  final HackerNewsStore hackerNewsStore = HackerNewsStore();
 
+  @override
+  void initState() {
+    _tabController = TabController(length: _tabs.length, vsync: this)..addListener(_onTabChange);
+    hackerNewsStore.loadNews(_tabs.first);
+    super.initState();
+  }
+  void _onTabChange() {
+    hackerNewsStore.loadNews(_tabs[_tabController.index]);
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -56,7 +67,8 @@ class _MyHomePageState extends State<MyHomePage> {
         body: SafeArea(
             child: TabBarView(
                 controller: _tabController,
-                children: [])) // This trailing comma makes auto-formatting nicer for build methods.
+                children: [FeedItemsView(hackerNewsStore, FeedType.latest),
+                  FeedItemsView(hackerNewsStore, FeedType.top),])) // This trailing comma makes auto-formatting nicer for build methods.
         );
   }
 }
